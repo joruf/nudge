@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nudge"
+version = "1.0.0"
+description = "Keeps a workstation from going idle, with switchable techniques"
+requires-python = ">=3.10"
+# Deliberately empty: the app must run on a locked-down machine where pip is
+# unavailable. Optional extras below only improve individual Linux techniques.
+dependencies = []
+
+[project.optional-dependencies]
+linux = ["python-xlib", "dbus-python", "evdev"]
+
+[project.scripts]
+nudge = "nudge.__main__:main"
+
+[tool.setuptools]
+packages = ["nudge", "nudge.techniques", "nudge.ui"]
+
+[tool.setuptools.package-data]
+nudge = ["locales/*.json"]
