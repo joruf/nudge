@@ -6,6 +6,37 @@ import argparse
 import sys
 import time
 
+
+# --- what this application needs ----------------------------------------------------------------
+# Checked before anything below is imported. Whatever is missing is installed in a window that
+# shows the work as it happens; see bootstrap_ui.py. `--setup` opens that window even when nothing
+# is missing, which is how to see what is installed.
+from .bootstrap_ui import Need, ensure  # noqa: E402
+
+NEEDS = (
+    Need(label="X11 bindings", module="Xlib", packages=("python3-xlib",), optional=True,
+         note="idle time is measured less precisely"),
+    Need(label="Input device access", module="evdev", packages=("python3-evdev",), optional=True,
+         note="key and mouse activity is not seen"),
+    Need(label="Desktop bus", module="dbus", packages=("python3-dbus",), optional=True,
+         note="the screensaver state is not seen"),
+    Need(label="Pointer tools", command="xdotool", packages=("xdotool",), optional=True,
+         note="the pointer cannot be nudged"),
+)
+
+# Only when the application is actually being started. Importing this module — which the test
+# suite does — should not check anything, let alone put an installer window on screen.
+if __name__ == "__main__":
+    # Taken out of the arguments once it has been read, so the application's own parser does
+    # not trip over a flag that was never meant for it.
+    _SETUP = "--setup" in sys.argv
+
+    if _SETUP:
+        sys.argv.remove("--setup")
+
+    if not ensure("Nudge", NEEDS, force=_SETUP):
+        raise SystemExit(1)
+
 from . import APP_NAME, __version__
 from .config import Config
 from .eventlog import EventLog
