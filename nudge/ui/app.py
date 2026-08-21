@@ -5,12 +5,13 @@ from __future__ import annotations
 import time
 import tkinter as tk
 
-from .. import APP_NAME, __version__
-from .. import autostart
+from .. import APP_NAME, VERSION_LABEL
+from .. import autostart, desktop_entry
 from ..config import Config
 from ..eventlog import EventLog
 from ..i18n import (
     DEFAULT_LANGUAGE,
+    Msg,
     available_languages,
     current_language,
     set_language,
@@ -22,6 +23,7 @@ from ..sysinfo import detect_vm, platform_label
 from ..techniques import SUSTAINED, Technique, load_techniques
 from .theme import THEMES, Fonts, Theme
 from .widgets import IntervalSpinner, PillButton, ScrollFrame, Switch, draw_pill
+from .window_icon import WM_CLASS_NAME, apply_window_icon
 
 REFRESH_MS = 500
 DEFAULT_THRESHOLD = 300
@@ -292,8 +294,19 @@ class NudgeApp:
         self.idle_monitor = IdleMonitor()
         self.theme: Theme = THEMES.get(self.config.get("theme", "dark"), THEMES["dark"])
 
-        self.root = tk.Tk()
-        self.root.title(f"{APP_NAME} {__version__}")
+        # className becomes the class part of WM_CLASS, which is how a panel matches this window
+        # to the .desktop entry that started it. Without it the window reports "Tk" and shows up
+        # beside the launcher as a second, iconless entry.
+        self.root = tk.Tk(className=WM_CLASS_NAME)
+        self.root.title(f"{APP_NAME} {VERSION_LABEL}")
+        apply_window_icon(self.root)
+        # Nudge.desktop next to the program says Icon=nudge, and an Icon= line cannot name a file
+        # relative to itself. Putting the rendered icons in the user's icon theme is what makes
+        # that name resolve -- for the file manager showing the launcher, and for the panel.
+        try:
+            desktop_entry.ensure_theme_icon()
+        except Exception:  # never let a missing icon stop the program from starting
+            pass
         self.root.minsize(560, 560)
         geometry = self.config.get("geometry")
         self.root.geometry(geometry if geometry else "600x780")
@@ -430,6 +443,12 @@ class NudgeApp:
         self._autostart_button.pack(side="left", padx=(8, 0))
         self._sync_autostart_label()
 
+        self._entry_button = PillButton(row, theme, t("footer.entry_off"),
+                                        self._toggle_entry, self.fonts.small,
+                                        height=28, bg=theme.surface)
+        self._entry_button.pack(side="left", padx=(8, 0))
+        self._sync_entry_label()
+
         self._theme_button = PillButton(row, theme, self._theme_label(),
                                         self._toggle_theme, self.fonts.small,
                                         height=28, bg=theme.surface)
@@ -482,7 +501,7 @@ class NudgeApp:
     def _toggle_autostart(self) -> None:
         target = not autostart.is_enabled()
         ok, key, params = autostart.set_enabled(target)
-        (self.log.ok if ok else self.log.error)(t("log.autostart"), t(key, **params))
+        (self.log.ok if ok else self.log.error)(Msg("log.autostart"), Msg(key, **params))
         self._sync_autostart_label()
 
     def _sync_autostart_label(self) -> None:
@@ -491,6 +510,22 @@ class NudgeApp:
             t("footer.autostart_on") if active else t("footer.autostart_off")
         )
         self._autostart_button.set_enabled(autostart.supported())
+
+    def _toggle_entry(self) -> None:
+        """Put Nudge in the desktop's program list, or take it out again."""
+        target = not desktop_entry.is_installed()
+        ok, key, params = desktop_entry.set_installed(target)
+        (self.log.ok if ok else self.log.error)(Msg("log.entry"), Msg(key, **params))
+        self._sync_entry_label()
+
+    def _sync_entry_label(self) -> None:
+        installed = desktop_entry.is_installed()
+        self._entry_button.set_text(
+            t("footer.entry_on") if installed else t("footer.entry_off")
+        )
+        # Shown on every platform, disabled where there is nothing to write to, rather than
+        # hidden: a button that is missing on one system looks like a bug, not a difference.
+        self._entry_button.set_enabled(desktop_entry.supported())
 
     def _theme_label(self) -> str:
         # Words rather than sun/moon symbols: those are missing from several
@@ -563,7 +598,7 @@ class NudgeApp:
         self._log_frame.configure(bg=theme.surface_sunken)
         self._log_text.configure(bg=theme.surface_sunken, fg=theme.text_muted)
         self._configure_log_tags()
-        for button in (self._log_button, self._autostart_button,
+        for button in (self._log_button, self._autostart_button, self._entry_button,
                        self._language_button, self._theme_button):
             button.apply_theme(theme, theme.surface)
         self._theme_button.set_text(self._theme_label())

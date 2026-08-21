@@ -8,7 +8,7 @@
 - [Finding a technique that works](#finding-a-technique-that-works)
 - [Technique reference](#technique-reference)
 - [Intervals](#intervals)
-- [Language, theme, autostart](#language-theme-autostart)
+- [Language, theme, autostart, menu entry](#language-theme-autostart-menu-entry)
 - [Running without a window](#running-without-a-window)
 - [Where settings are stored](#where-settings-are-stored)
 - [Troubleshooting](#troubleshooting)
@@ -28,9 +28,18 @@ Caffeine do the first half and leave you guessing.
 
 ## Starting Nudge
 
-**Linux:** `./nudge.sh` from the installation directory.
+**Linux:** double-click **`Nudge.desktop`** in the program folder. That file is
+the launcher: it finds the program next to itself, so it works straight out of
+a fresh clone, from any directory, with nothing installed and nothing edited.
+The first start also renders the application icon, and the file shows it from
+then on. `python3 nudge.py` does the same from a terminal.
 
 **Windows:** double-click `nudge.pyw`, or run `python -m nudge`.
+
+Either way, the **Menu entry** button in the footer additionally puts Nudge in
+the desktop's own list of programs, so it can be started like any other
+application — from the application menu on Linux, from the Start menu on
+Windows.
 
 Nothing happens until you turn on the master switch in the top right. Nudge
 starts paused on purpose.
@@ -103,6 +112,7 @@ status line turns amber with the reason plus the command that would fix it:
 
 - **Log** opens a panel with a timestamped history of every action
 - **Autostart** registers or removes a login entry
+- **Menu entry** adds Nudge to the application menu, or removes it again
 - **English / Deutsch** switches language immediately
 - **Light / Dark** switches theme
 
@@ -225,7 +235,7 @@ Techniques come in two kinds:
 
 ---
 
-## Language, theme, autostart
+## Language, theme, autostart, menu entry
 
 **Language.** English is the default. The button in the bottom right switches
 immediately and remembers the choice. Lines already in the log get
@@ -242,6 +252,34 @@ text.
 Both live in your user profile and need no administrator rights. Clicking
 again removes the entry. If you move the installation directory, toggle
 autostart off and on again so the stored path is refreshed.
+
+**Menu entry.** `Nudge.desktop` in the program folder already starts Nudge by
+double-click. The neighbouring button additionally registers it with the
+desktop itself, which gives it a place in the menu and in search:
+
+- Linux: `~/.local/share/applications/nudge.desktop`, plus the icon in
+  `~/.local/share/icons/hicolor/`
+- Windows: a shortcut in the Start menu under `Programs\Nudge.lnk`
+
+The same rule applies: per-user, no administrator rights, and a move of the
+installation directory needs one off-and-on again — the menu copy carries an
+absolute path, where `Nudge.desktop` itself does not and therefore survives a
+move. Removing the entry leaves the icon in place, because the file in the
+program folder still uses it.
+
+The icon is drawn by Nudge on first start rather than shipped as an image file
+— a pointer with two ripples, in four sizes plus a Windows `.ico`, written next
+to the program in `resources/` and installed into
+`~/.local/share/icons/hicolor/`. Nothing to download, which is the same reason
+the rest of the program has no dependencies.
+
+The same thing without the interface, for a machine where the window will not
+open or a setup script that should not need one:
+
+```bash
+python -m nudge --install-desktop
+python -m nudge --remove-desktop
+```
 
 ---
 

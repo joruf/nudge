@@ -37,7 +37,8 @@ if __name__ == "__main__":
     if not ensure("Nudge", NEEDS, force=_SETUP):
         raise SystemExit(1)
 
-from . import APP_NAME, __version__
+from . import APP_NAME, VERSION_LABEL
+from . import desktop_entry
 from .config import Config
 from .eventlog import EventLog
 from .i18n import DEFAULT_LANGUAGE, available_languages, set_language, t
@@ -48,7 +49,7 @@ from .techniques import load_techniques
 
 
 def cmd_list() -> int:
-    print(f"{APP_NAME} {__version__} — {platform_label()}")
+    print(f"{APP_NAME} {VERSION_LABEL} — {platform_label()}")
     vm = detect_vm()
     if vm:
         print(t("cli.virtualisation", vm=vm))
@@ -70,6 +71,23 @@ def cmd_list() -> int:
             print(f"     {t('cli.remedy', hint=availability.hint)}")
         print()
     return 0
+
+
+def cmd_desktop(install: bool) -> int:
+    """Add Nudge to the desktop's own list of programs, or take it out again.
+
+    Args:
+        install: True to create the entry, False to remove it.
+
+    Returns:
+        int: Process exit status.
+    """
+    if not desktop_entry.supported():
+        print(t("log.entry_unsupported"), file=sys.stderr)
+        return 2
+    ok, key, params = desktop_entry.set_installed(install)
+    print(t(key, **params), file=sys.stdout if ok else sys.stderr)
+    return 0 if ok else 1
 
 
 def cmd_headless(duration: float | None) -> int:
@@ -124,7 +142,11 @@ def main(argv: list[str] | None = None) -> int:
                         help=t("cli.arg_duration"))
     parser.add_argument("--language", "--lang", dest="language", choices=codes,
                         default=None, help=t("cli.arg_language"))
-    parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
+    parser.add_argument("--install-desktop", action="store_true",
+                        help=t("cli.arg_install_desktop"))
+    parser.add_argument("--remove-desktop", action="store_true",
+                        help=t("cli.arg_remove_desktop"))
+    parser.add_argument("--version", action="version", version=f"{APP_NAME} {VERSION_LABEL}")
     args = parser.parse_args(argv)
 
     if args.language:
@@ -132,6 +154,8 @@ def main(argv: list[str] | None = None) -> int:
         config.set("language", args.language)
         config.save()
 
+    if args.install_desktop or args.remove_desktop:
+        return cmd_desktop(args.install_desktop)
     if args.list:
         return cmd_list()
     if args.headless:

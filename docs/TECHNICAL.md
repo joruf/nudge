@@ -13,7 +13,7 @@
 - [Windows platform notes](#windows-platform-notes)
 - [Why injected input can be ignored](#why-injected-input-can-be-ignored)
 - [User interface](#user-interface)
-- [Configuration and autostart](#configuration-and-autostart)
+- [Configuration, autostart and menu entry](#configuration-autostart-and-menu-entry)
 - [Extending Nudge](#extending-nudge)
 - [Verification results](#verification-results)
 - [Known limitations](#known-limitations)
@@ -41,8 +41,12 @@ Three constraints shaped nearly every decision:
 ## Module map
 
 ```
+Nudge.desktop                 the double-click launcher, self-locating via %k; also the template
+nudge.py                      the same start from a terminal, any working directory
+nudge.pyw                     the same again under a name that starts pythonw.exe
+resources/                    icons, rendered on first start, not in version control
 nudge/
-├── __init__.py               version, APP_NAME, APP_ID
+├── __init__.py               version and build, APP_NAME, APP_ID
 ├── __main__.py               CLI entry point, argument parsing
 ├── paths.py                  platform-appropriate config locations
 ├── config.py                 JSON settings, atomic writes, value clamping
@@ -52,6 +56,7 @@ nudge/
 ├── scheduler.py              the single worker thread
 ├── sysinfo.py                VM detection and platform label
 ├── autostart.py              login entry on both platforms
+├── desktop_entry.py          application menu entry (Linux) and Start menu shortcut (Windows)
 ├── locales/
 │   ├── en.json               English, also the fallback catalogue
 │   └── de.json               German
@@ -63,12 +68,18 @@ nudge/
 └── ui/
     ├── theme.py              colour palettes, font selection
     ├── widgets.py            canvas-drawn switch, button, spinner, scroller
+    ├── window_icon.py        the icon, rendered from distance fields to PNG and .ico
     └── app.py                main window, idle meter, technique cards
 ```
 
 Dependency direction is strictly downward: `ui` imports from the core, the
 core never imports from `ui`. That is what makes `--headless` possible without
 tkinter installed at all.
+
+`ui/window_icon.py` is the one exception, and only on paper: `desktop_entry.py`
+imports it for the icon files and the WM_CLASS name. It contains no tkinter at
+module level — the import sits inside `apply_window_icon()` — so a headless
+machine can still install a menu entry.
 
 ---
 
@@ -415,7 +426,7 @@ transient.
 
 ---
 
-## Configuration and autostart
+## Configuration, autostart and menu entry
 
 ### Config file
 
@@ -449,9 +460,97 @@ defaults apply — a corrupt config never prevents startup.
   `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, written with the
   standard-library `winreg` module
 
-Both are per-user and need no elevation. The launch command is derived from
-`sys.executable` and `__file__` at write time, and prefers `pythonw.exe` on
-Windows so no console appears.
+Both are per-user and need no elevation. The launch command is
+`"<interpreter>" "<launcher>"` — `sys.executable` and `nudge.py`, or
+`pythonw.exe` and `nudge.pyw` on Windows so no console appears. Neither needs a
+shell or a working directory, because the launcher finds the package next to
+itself.
+
+### Menu entry
+
+Autostart answers "start this at login". `desktop_entry.py` answers the other
+half, "let me start it myself", and is a separate switch in the footer:
+
+- **Linux:** `~/.local/share/applications/nudge.desktop`, built from
+  `Nudge.desktop` with `Exec`, `Icon`, `Path` and `StartupWMClass` replaced and
+  the comments dropped. `Exec` has to become absolute here: the `%k` form that
+  makes the shipped file self-locating would point a copy in the menu directory
+  at the menu directory.
+- **Windows:** `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Nudge.lnk`.
+  A `.lnk` is a COM object and the standard library cannot write one, so this
+  drives `WScript.Shell` through PowerShell — present on every supported
+  Windows, and needing no elevation inside the user's own profile.
+
+The autostart entry is built by the same `build_entry()` from the same
+template, plus `X-GNOME-Autostart-enabled=true`. Three hand-written variants of
+one file drift apart; one file with three consumers cannot.
+
+`--install-desktop` and `--remove-desktop` do the same from the command line,
+for a machine where the window will not open.
+
+### The launcher that starts itself
+
+`Nudge.desktop` sits in the project root and is the primary way to start the
+program on Linux: double-click it, no installation. Three details make that
+work.
+
+- **It locates itself.** `%k` expands to the path of the desktop file, so
+  `Exec` derives the program directory from it. A checked-in file cannot carry
+  an absolute path — the clone could be anywhere — and a relative `Exec` is
+  resolved against the launching process's working directory, which is
+  whatever the file manager happens to have. `%k` is the only fixed point.
+- **It runs Python, not a shell.** The command is `python3 -c` with a two-line
+  body: derive the directory from `sys.argv[1]`, put it on `sys.path`, then
+  `runpy.run_module("nudge", run_name="__main__")`. Under that name the
+  dependency check in `__main__.py` runs exactly as it does for
+  `python3 -m nudge` — a plain `import` and `main()` call would skip it.
+  `del sys.argv[1:]` before the module runs, or the program's own argument
+  parser sees the desktop file path and refuses to start.
+- **The icon has to come from the theme.** An `Icon=` line names either a theme
+  icon or an absolute file, never a path relative to the desktop file, so a
+  self-locating launcher cannot point at an icon beside itself.
+  `ensure_theme_icon()` therefore installs the rendered icons into
+  `~/.local/share/icons/hicolor/` on every start — four `is_file()` checks once
+  they are there — and `Icon=nudge` resolves from then on. That is also why
+  removing the menu entry leaves the icon behind: it belongs to the icon theme,
+  not to the entry.
+
+Because the shipped file keeps `%k` rather than being rewritten with absolute
+paths, moving or renaming the program directory needs no repair, and the file
+never changes — which is what keeps it out of `git status`.
+
+### The icon
+
+`ui/window_icon.py` renders the icon instead of shipping it, for the same
+reason there are no dependencies: a machine where `pip install` fails has no
+image library to scale a source file with either. Shapes are signed distance
+fields — a rounded tile, a triangle and a capsule for the pointer, chains of
+capsules for the ripples — sampled per pixel and blended by coverage, then
+written with `zlib` and `struct` as PNG. A 256 px icon takes about a second,
+happens once, and the files land in `resources/` (or the user cache directory
+when the program directory is read-only).
+
+Three details worth keeping:
+
+- **`_NET_WM_ICON` has a size limit.** Tk writes every image handed to
+  `iconphoto()` in a single `XChangeProperty` request, and X refuses one above
+  65535 words of four bytes. A 256×256 image alone needs 65538, so including it
+  leaves the property empty and the window without any icon — silently. The
+  window therefore gets 128, 64 and 48.
+- **`WM_CLASS` has to match `StartupWMClass`.** `tk.Tk(className="Nudge")`
+  makes the window report `"nudge", "Nudge"`; Tk normalises the class part to
+  "first letter upper, rest lower". Without the match, the panel treats
+  launcher and window as unrelated and shows a second, iconless task entry.
+- **An icon copied into the theme is invisible until the cache agrees.** Where
+  `~/.local/share/icons/hicolor/icon-theme.cache` exists, GTK trusts it over
+  the directory it sits in: `Gtk.IconTheme.has_icon("nudge")` stays False with
+  the file plainly on disk. Installing therefore runs
+  `gtk-update-icon-cache -q -f -t` on that directory — and where the cache is
+  stale and the tool is missing, `Icon=` falls back to an absolute path rather
+  than pointing at a name nothing resolves.
+
+The Windows `.ico` is the same PNGs in an ICO container — a format Windows has
+read since Vista — which is why one encoder covers both platforms.
 
 ---
 
@@ -523,6 +622,14 @@ it.
 
 The `xdg-screensaver` result is reflected in that technique's own description
 rather than hidden.
+
+The desktop integration was checked the same way, by reading back what it
+wrote: `desktop-file-validate` accepts the installed entry without warnings,
+`xprop` on the running window reports `WM_CLASS = "nudge", "Nudge"` and an
+`_NET_WM_ICON` carrying the 128, 64 and 48 pixel images, and installing and
+removing the entry from the footer button leaves nothing behind. The Windows
+branch was exercised with a stub standing in for PowerShell, which verifies
+the script it is handed but not the COM call itself.
 
 ---
 

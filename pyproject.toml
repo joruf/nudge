@@ -4,7 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nudge"
-version = "1.0.0"
+# Read from nudge/__init__.py, which is the one place the number is written down. PEP 440 has no
+# room for the build counter in brackets, so the package metadata carries the semantic half only.
+dynamic = ["version"]
 description = "Keeps a workstation from going idle, with switchable techniques"
 requires-python = ">=3.10"
 # Deliberately empty: the app must run on a locked-down machine where pip is
@@ -16,6 +18,9 @@ linux = ["python-xlib", "dbus-python", "evdev"]
 
 [project.scripts]
 nudge = "nudge.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "nudge.__version__" }
 
 [tool.setuptools]
 packages = ["nudge", "nudge.techniques", "nudge.ui"]

@@ -2,33 +2,31 @@
 
 Both implementations stay inside the user's own profile, so neither needs
 administrator rights -- which matters on a locked-down machine.
+
+The Linux entry is the same desktop entry the application menu gets, built by
+desktop_entry.py from the one template in resources/, plus the key that lets a
+desktop switch it off without deleting the file. Two hand-written variants of
+the same file drift apart; one template with two consumers does not.
 """
 
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
-from . import APP_NAME
-from .paths import IS_LINUX, IS_WINDOWS
+from .desktop_entry import build_entry, ensure_theme_icon
+from .paths import IS_LINUX, IS_WINDOWS, LAUNCHER_SCRIPT, python_command
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALUE_NAME = "Nudge"
 
-
-def _project_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+#: GNOME reads this rather than the presence of the file, so it has to be there.
+AUTOSTART_KEYS = ("X-GNOME-Autostart-enabled=true",)
 
 
 def _launch_command() -> str:
     """Quoted command line that starts the app without a console window."""
-    executable = Path(sys.executable)
-    if IS_WINDOWS:
-        windowless = executable.with_name("pythonw.exe")
-        if windowless.exists():
-            executable = windowless
-    return f'"{executable}" -m nudge'
+    return f'"{python_command()}" "{LAUNCHER_SCRIPT}"'
 
 
 def _desktop_file() -> Path:
@@ -49,17 +47,7 @@ def _linux_set(enabled: bool) -> None:
         path.unlink(missing_ok=True)
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    root = _project_root()
-    content = (
-        "[Desktop Entry]\n"
-        "Type=Application\n"
-        f"Name={APP_NAME}\n"
-        "Comment=Haelt die Sitzung wach\n"
-        f'Exec=sh -c \'cd "{root}" && {_launch_command()}\'\n'
-        "Terminal=false\n"
-        "X-GNOME-Autostart-enabled=true\n"
-    )
-    path.write_text(content, encoding="utf-8")
+    path.write_text(build_entry(ensure_theme_icon(), extra=AUTOSTART_KEYS), encoding="utf-8")
 
 
 # ---------------------------------------------------------------- Windows
@@ -82,8 +70,9 @@ def _windows_set(enabled: bool) -> None:
     import winreg
 
     if enabled:
-        root = _project_root()
-        command = f'cmd /c start "" /d "{root}" {_launch_command()}'
+        # No cmd wrapper and no cd: the launcher script finds the package next to itself, so the
+        # working directory it inherits does not matter.
+        command = _launch_command()
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as key:
             winreg.SetValueEx(key, VALUE_NAME, 0, winreg.REG_SZ, command)
     else:

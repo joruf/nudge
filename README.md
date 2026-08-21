@@ -39,8 +39,29 @@ detects virtualisation on its own and shows a banner saying so.
 ```bash
 git clone <repository-url> nudge
 cd nudge
-./nudge.sh
 ```
+
+Then **double-click `Nudge.desktop`** in the folder — that file is the
+launcher. It locates the program next to itself, so there is nothing to
+install, nothing to edit and no absolute path to write in; moving the folder
+somewhere else keeps it working. The first start renders the application icon,
+which the file then shows from that moment on.
+
+The same thing from a terminal, if you prefer one:
+
+```bash
+python3 nudge.py
+```
+
+To have Nudge in the application menu as well:
+
+```bash
+python3 nudge.py --install-desktop
+```
+
+That writes `~/.local/share/applications/nudge.desktop`, inside your own
+profile. The **Menu entry** button in the footer does the same thing, and
+undoes it.
 
 If tkinter is missing: `sudo apt install python3-tk`
 
@@ -60,7 +81,9 @@ python -m nudge
 ```
 
 Or double-click `nudge.pyw` — the `.pyw` extension launches `pythonw.exe`, so
-no console window appears.
+no console window appears. `python -m nudge --install-desktop` puts a shortcut
+with an icon in the Start menu, which is the same button in the same place as
+on Linux.
 
 **If Python is not installed**, check first:
 
@@ -110,6 +133,11 @@ it:
 - **Dark and light theme**
 - **Autostart** on both platforms, written into the user profile, no admin
   rights needed
+- **Starts by double-click** — `Nudge.desktop` is self-locating, needs no
+  installation, and carries an icon that Nudge draws itself, because a machine
+  that cannot install a package cannot install an image library either
+- **Menu entry** on both platforms — the application menu on Linux, the Start
+  menu on Windows — from one button in the footer
 - **Headless mode** for running without a window
 
 ---
@@ -126,11 +154,17 @@ it:
 ## Command line
 
 ```
-python -m nudge              start the interface
-python -m nudge --list       show techniques and their availability
-python -m nudge --headless   run without a window
+python -m nudge                    start the interface
+python -m nudge --list             show techniques and their availability
+python -m nudge --headless         run without a window
 python -m nudge --language de
+python -m nudge --install-desktop  add a menu entry with an icon
+python -m nudge --remove-desktop   remove it again
 ```
+
+`python3 nudge.py` does the same as `python -m nudge` and works from any
+directory, which is what the menu entry and the autostart entry both point at.
+`Nudge.desktop` is the double-click form of the same thing.
 
 ---
 

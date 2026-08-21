@@ -1,4 +1,9 @@
 
+/__pycache__
 /nudge/__pycache__
 /nudge/ui/__pycache__
 /nudge/techniques/__pycache__
+
+# Application icons and the Windows .ico, rendered on first start by nudge/ui/window_icon.py
+/resources/nudge-*.png
+/resources/nudge.ico
