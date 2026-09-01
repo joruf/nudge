@@ -6,7 +6,7 @@ GenericName=Anti-idle tool
 GenericName[de]=Anti-Leerlauf-Werkzeug
 Comment=Keeps the workstation from going idle, with switchable techniques
 Comment[de]=Hält die Arbeitsstation wach, mit umschaltbaren Techniken
-Icon=nudge
+Icon=/home/joruf/Applications/nudge/resources/nudge-256.png
 # Self-locating, and that is the whole point of this line. %k is the path of this file, so the
 # launcher finds the program next to itself no matter where the clone sits -- nothing to install
 # first, nothing to edit by hand, and a moved directory keeps working. Python rather than a shell
@@ -14,7 +14,9 @@ Icon=nudge
 # identical to `python3 -m nudge`, right down to the window that installs missing packages. The
 # path has to be taken back out of sys.argv afterwards, or the program's own argument parser sees
 # it and refuses to start.
-Exec=python3 -c "import os,runpy,sys,urllib.parse as u;p=sys.argv[1];p=u.unquote(p[7:]) if p.startswith('file://') else p;sys.path.insert(0,os.path.dirname(os.path.realpath(p)));del sys.argv[1:];runpy.run_module('nudge',run_name='__main__')" %k
+# Icon= cannot be relative -- the spec reads a relative path as a theme name -- so the launcher
+# repairs that line too, writing the absolute path of the icon beside it after the folder moved.
+Exec=python3 -c "import os,runpy,sys,urllib.parse as u;p=sys.argv[1];p=u.unquote(p[7:]) if p.startswith('file://') else p;s=os.path.realpath(p);d=os.path.dirname(s);i=d+'/resources/nudge-256.png';t=open(s).read() if os.access(s,os.W_OK) else '';n=''.join('Icon='+i+'\\n' if l.startswith('Icon=') else l for l in t.splitlines(True));(n!=t) and open(s,'w').write(n);sys.path.insert(0,d);del sys.argv[1:];runpy.run_module('nudge',run_name='__main__')" %k
 Terminal=false
 Categories=Utility;
 Keywords=idle;awake;screensaver;lock;presence;
