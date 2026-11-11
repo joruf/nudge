@@ -23,7 +23,7 @@ import zlib
 from pathlib import Path
 from typing import Callable, Sequence
 
-from ..paths import ICON_BASENAME, RESOURCES_DIR, cache_dir
+from ..paths import ICON_BASENAME, IS_FROZEN, RESOURCES_DIR, cache_dir
 
 #: Written next to the .desktop template. The first entry is the one a .desktop file points at.
 ICON_SIZES: tuple[int, ...] = (256, 128, 64, 48)
@@ -279,6 +279,9 @@ def icon_directories() -> list[Path]:
     `resources/` next to the program is the normal home. The cache directory is the fallback for
     a clone the user cannot write to -- a shared checkout, or one unpacked read-only.
     """
+    if IS_FROZEN:
+        # resources/ is inside the unpacked files of the executable and gone when it exits.
+        return [cache_dir()]
     return [RESOURCES_DIR, cache_dir()]
 
 

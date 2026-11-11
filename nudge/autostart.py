@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 
 from .desktop_entry import build_entry, ensure_theme_icon
-from .paths import IS_LINUX, IS_WINDOWS, LAUNCHER_SCRIPT, python_command
+from .paths import IS_LINUX, IS_WINDOWS, launcher_arguments, python_command
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALUE_NAME = "Nudge"
@@ -26,7 +26,7 @@ AUTOSTART_KEYS = ("X-GNOME-Autostart-enabled=true",)
 
 def _launch_command() -> str:
     """Quoted command line that starts the app without a console window."""
-    return f'"{python_command()}" "{LAUNCHER_SCRIPT}"'
+    return " ".join(f'"{part}"' for part in (python_command(), *launcher_arguments()))
 
 
 def _desktop_file() -> Path:

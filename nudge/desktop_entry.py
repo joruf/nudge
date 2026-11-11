@@ -33,8 +33,8 @@ from .paths import (
     DESKTOP_LAUNCHER,
     IS_LINUX,
     IS_WINDOWS,
-    LAUNCHER_SCRIPT,
-    PROJECT_ROOT,
+    launcher_arguments,
+    launcher_directory,
     data_dir,
     python_command,
 )
@@ -175,9 +175,9 @@ def build_entry(icon: str, extra: Sequence[str] = ()) -> str:
         template = DEFAULT_TEMPLATE
 
     replacements = {
-        "Exec": f'Exec="{python_command()}" "{LAUNCHER_SCRIPT}"',
+        "Exec": "Exec=" + " ".join(f'"{part}"' for part in (python_command(), *launcher_arguments())),
         "Icon": f"Icon={icon}",
-        "Path": f"Path={PROJECT_ROOT}",
+        "Path": f"Path={launcher_directory()}",
         "StartupWMClass": f"StartupWMClass={WM_CLASS_PUBLISHED}",
     }
     seen: set[str] = set()
@@ -280,14 +280,14 @@ def _windows_set(enabled: bool) -> None:
     icon = ensure_ico_file()
     # The launcher path is quoted twice over: once for PowerShell, and once inside the argument
     # string itself, because that is what the shortcut hands to the interpreter later on.
-    arguments = '"' + str(LAUNCHER_SCRIPT) + '"'
+    arguments = " ".join(f'"{part}"' for part in launcher_arguments())
     description = "Keeps the workstation from going idle"
     script = [
         "$shortcut = (New-Object -ComObject WScript.Shell)"
         f".CreateShortcut({_quote_powershell(path)})",
         f"$shortcut.TargetPath = {_quote_powershell(python_command())}",
         f"$shortcut.Arguments = {_quote_powershell(arguments)}",
-        f"$shortcut.WorkingDirectory = {_quote_powershell(PROJECT_ROOT)}",
+        f"$shortcut.WorkingDirectory = {_quote_powershell(launcher_directory())}",
         f"$shortcut.Description = {_quote_powershell(description)}",
     ]
     if icon is not None:

@@ -12,6 +12,9 @@ IS_WINDOWS = sys.platform.startswith("win")
 IS_LINUX = sys.platform.startswith("linux")
 IS_MACOS = sys.platform == "darwin"
 
+#: True inside the single-file executable that build-exe.py produces.
+IS_FROZEN = bool(getattr(sys, "frozen", False))
+
 
 def config_dir() -> Path:
     if IS_WINDOWS:
@@ -92,3 +95,21 @@ def python_command() -> str:
         if windowless.exists():
             return str(windowless)
     return str(path)
+
+
+def launcher_arguments() -> list[str]:
+    """What follows python_command() in a generated launcher.
+
+    The launcher script from a clone; nothing for the single-file executable, which is the
+    program itself and is started without arguments.
+    """
+    return [] if IS_FROZEN else [str(LAUNCHER_SCRIPT)]
+
+
+def launcher_directory() -> Path:
+    """The working directory of a generated launcher.
+
+    The project folder for a clone. The executable unpacks itself into a temporary folder that is
+    gone after it exits, so its own folder is the one that can be named.
+    """
+    return Path(sys.executable).resolve().parent if IS_FROZEN else PROJECT_ROOT

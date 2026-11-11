@@ -106,6 +106,27 @@ tkinter and the interface will not start.
 
 ---
 
+## Executables
+
+Ready-made single-file executables for Linux and Windows are on the
+[Releases page](https://github.com/joruf/nudge/releases). Download the file for
+your system (Linux: `chmod +x` it first), no Python needed. The Linux file
+carries `python-xlib`; the optional `evdev` and `dbus` integrations need a
+source checkout.
+
+To build one yourself, on the system it is meant for:
+
+```bash
+python3 build-exe.py      # Linux   -> dist/nudge-linux-x86_64-<version>-build<build>
+py build-exe.py           # Windows -> dist/nudge-windows-x86_64-<version>-build<build>.exe
+```
+
+The script creates its own build environment in `build/exe/`, installs
+PyInstaller and starts the result once with `--version`. Options: `--clean`
+rebuilds the environment, `--keep-env` reuses it.
+
+---
+
 ## What it looks like
 
 | Light theme | Technique detail and log |
